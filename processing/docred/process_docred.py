@@ -78,19 +78,66 @@ def linearize_boring():
     }
     json.dump(config_data, open(f'../../data/docred/{name}/config.json', 'w'), indent=2)
 
-    data = get_docred('../../data/docred/train_data.json')
-    article_strs = []
-    for article in data:
-        relation_strs = []
-        for rel in article['relations']:
-            type_str = rel['r']
-            head_str = article['vertexList'][rel['h']]['span']
-            tail_str = article['vertexList'][rel['t']]['span']
-            relation_strs.append(f'<rel> <{type_str}> <h> {head_str} <t> {tail_str}')
-        article['linearized'] = ' '.join(relation_strs)
-    json.dump(data, open(f'../../data/docred/{name}/train.json', 'w'), indent=2)
+    splits = {'train': 'train_data', 'eval': 'dev'}
+    for output_split, input_split in splits.items():
+        data = get_docred(f'../../data/docred/{input_split}.json')
+        article_strs = []
+        for article in data:
+            relation_strs = []
+            for rel in article['relations']:
+                type_str = rel['r']
+                head_str = article['vertexList'][rel['h']]['span']
+                tail_str = article['vertexList'][rel['t']]['span']
+                relation_strs.append(f'<rel> <{type_str}> <h> {head_str} <t> {tail_str}')
+            article['linearized'] = ' '.join(relation_strs)
 
-def delinearize_boring(linearized_strings):
-    for linearized_string in linearized_strings:
-        # TODO
-        pass
+        json.dump(data, open(f'../../data/docred/{name}/{output_split}.json', 'w'), indent=2)
+
+def split_seq(seq, val):
+    result = []
+    temp_list = []
+    for x in seq:
+        if x == val:
+            if temp_list:
+                result.append(temp_list)
+                temp_list = []
+        else:
+            temp_list.append(x)
+    result.append(temp_list)
+    return result
+
+def delinearize_boring(linearized_tokens):
+    per_doc_relations = []
+    for token_seq in linearized_tokens:
+        relations = set()
+        rel_token_seqs = split_seq(token_seq, '<rel>')
+        for rel_token_seq in rel_token_seqs:
+            # Can't have fewer than the required tokens
+            if len(rel_token_seq) < 3:
+                continue
+            rel_type_token = rel_token_seq[0].strip('<>')
+            # The first token should be the relation type
+            if rel_type_token not in RELATION_TYPES:
+                continue
+            # we need one head entity
+            if rel_token_seq.count('<h>') != 1:
+                continue
+            # and one tail entity
+            if rel_token_seq.count('<t>') != 1:
+                continue
+            # the tail can't come before the head
+            h_idx = rel_token_seq.index('<h>')
+            t_idx = rel_token_seq.index('<t>')
+            if t_idx < h_idx:
+                continue
+            # everything seems in order! let's build the relation tuple
+            rel_type = RELATION_TYPES[rel_type_token]
+            # join the token strings into a single string
+            head = ''.join(rel_token_seq[h_idx+1:t_idx]).replace('\u2581', ' ')
+            tail = ''.join(rel_token_seq[t_idx+1:]).replace('\u2581', ' ')
+            relations.add((rel_type, head, tail))
+        per_doc_relations.append(list(relations))
+    return per_doc_relations
+
+if __name__ == '__main__':
+    linearize_boring()
