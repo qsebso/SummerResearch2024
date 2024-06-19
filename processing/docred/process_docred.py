@@ -44,7 +44,7 @@ def get_docred(fp):
 
 # take a dataset from json import format
 # return a linear string including vertices and relations
-def linearize_(dataset):
+def linearize_vertex_ref(dataset):
     # relations
     output = []
     for article in dataset:
@@ -60,10 +60,44 @@ def linearize_(dataset):
         output.append((article['text'], linear))
     return output
 
-def delinearize_tannerv1(linearized_strings):
-    for linearized_string in linearized_strings:
-        # TODO
-        pass
+
+def _delinearize_relations(strings):
+    output = []
+    for string in strings:
+        ht = string.split('<h>')
+        relation_type = ht.pop(0).replace(' ', '')
+        final_split = ht[0].split('<t>')
+        head = int(final_split.pop(0))
+        if '<end>' in final_split[0]:
+            # final_split[0] = final_split[0].replace('<pad>', '')
+            tail = int(final_split.pop()[:-11])
+        else:
+            tail = int(final_split.pop())
+        output.append({'r': relation_type, 'h': head, 't': tail})
+    return output
+
+
+def delinearize_vertex_ref(linearized_strings):
+    for x, linearized_string in enumerate(linearized_strings):
+        linearized_string = linearized_string.replace('<pad>', '')
+        split = linearized_string.split('<r>')
+        vertices = linearized_string.pop(0)
+        relations = _delinearize_relations(split)
+        vertices = vertices.split('<vertex>')
+        vertices.pop(0)
+        vertices_dict = {}
+        for vertex in vertices:
+            split = vertex.split('[[')
+            if '</s>' in split[1]:
+                split[1] = split[1].replace('</s>', '')
+                split[1] = split[1].replace('<end> ', '')
+            vertices_dict[int(split[1][:-3])] = split[0][1:-1]
+        output = {}
+        output[x]['relations'] = relations
+        output[x]['vertexList'] = vertices_dict
+        output[x]['linearized'] = linearized_string
+
+        return output
 
 def linearize_boring():
     name = 'boring'
