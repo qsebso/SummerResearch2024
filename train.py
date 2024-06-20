@@ -24,7 +24,6 @@ DATA_DIR = f'data/{dataset}/{linearization}'
 OUTPUT_DIR = f'outputs/{dataset}/{linearization}/{model_checkpoint}/{timestamp}'
 
 sys.path.append(f'processing')
-delinearize = None
 exec(f'from process_{dataset} import delinearize_{linearization} as delinearize')
 
 config = json.load(open(f'{DATA_DIR}/config.json', 'r'))
@@ -49,14 +48,14 @@ dataset = DatasetDict(json_data)
 
 # tokenization!
 def preprocess_data(examples):
-	model_inputs = tokenizer(examples['document'],
-			max_length = config['input_ids_max_len'],
-			truncation = True,
-			padding = True)
-	targets = tokenizer(examples['summary'],
-			max_length = config['labels_max_len'],
-			truncation = True,
-			padding = True)
+	model_inputs = tokenizer(examples['document'])
+			#max_length = config['input_ids_max_len'],
+			#truncation = True,
+			#padding = True)
+	targets = tokenizer(examples['summary'])
+			#max_length = config['labels_max_len'],
+			#truncation = True,
+			#padding = True)
 	model_inputs['labels'] = targets['input_ids']
 	return model_inputs
 tokenized_datasets = dataset.map(preprocess_data, batched = True, remove_columns=['document','summary'])
@@ -65,6 +64,7 @@ tokenized_datasets = dataset.map(preprocess_data, batched = True, remove_columns
 print(tokenized_datasets['eval'][0]['labels'])
 print(tokenizer.convert_ids_to_tokens(tokenized_datasets['eval'][0]['labels']))
 print(len(tokenized_datasets['eval'][0]['labels']))
+pdb.set_trace()
 
 batch_size = 12
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=model,return_tensors='pt',label_pad_token_id=0)

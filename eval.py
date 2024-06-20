@@ -21,7 +21,8 @@ def match(relation, true_rels):
     else:
         return output
 
-def generate_confusion_matrix(true_rels, pred_rels, possible_labels):
+def generate_confusion_matrix(true_rels: list[list[list]], pred_rels: list[list[list]],
+                              possible_labels: dict) -> list[list[int]]:
     matrix = [[0 for x in range(len(possible_labels))] for y in range(len(possible_labels))]
     for x, article in enumerate(pred_rels):
         # list of things that we've found matches for

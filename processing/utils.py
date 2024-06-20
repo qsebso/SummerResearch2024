@@ -1,4 +1,13 @@
-def split_seq(seq, val):
+from typing import Iterable
+
+def split_seq(seq: list, val) -> list[list]:
+    """
+    parameters:
+        seq: list of anything
+        val: something in the list
+    returns:
+        sublists from seq split everywhere val appears
+    """
     result = []
     temp_list = []
     for x in seq:
@@ -11,6 +20,6 @@ def split_seq(seq, val):
     result.append(temp_list)
     return result
 
-def partition_seq(seq, percentage):
+def partition_seq(seq: list, percentage: float):
     part_idx = int(len(seq)*percentage)
     return seq[:part_idx], seq[part_idx:]
