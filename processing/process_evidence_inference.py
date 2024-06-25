@@ -65,7 +65,7 @@ def delinearize_boring(linearized_tokens):
             if not (i_idx < c_idx < o_idx):
                 continue
             # everything seems in order! let's build the relation tuple
-            rel_type = RELATION_TYPES[rel_type_token]
+            rel_type = rel_type_token
             # join the token strings into a single string
             i_toks = tuple(rel_token_seq[i_idx+1:c_idx])
             c_toks = tuple(rel_token_seq[c_idx+1:o_idx])

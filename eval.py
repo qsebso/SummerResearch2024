@@ -1,8 +1,13 @@
 from typing import Tuple
 import pdb
+from sklearn.metrics import precision_recall_fscore_support
 
 # This is where our human-readable evaluation metrics will go!
 # e.g. precision, recall, f1, etc.
+
+def pprint_matrix(matrix):
+    for row in matrix:
+        print('\t'.join([str(cell) for cell in row]))
 
 def compute_score(true_rels, pred_rels):
     return { 'f1': 0, 'precision': 0, 'recall': 0 }
@@ -45,32 +50,68 @@ def generate_confusion_matrix(all_true_rels: list[list[list]],
     arguments:
     all_true_rels: a list of lists of lists representing the true labels for each
     """
-    ordered_labels = {}
     MISSING_LABEL = '<NONE>'
-    possible_labels[MISSING_LABEL] = MISSING_LABEL
-    for i, label in enumerate(possible_labels.values()):
+    ordered_labels = {}
+    for i, label in enumerate([MISSING_LABEL] + list(possible_labels.keys())):
         ordered_labels[label] = i
     print(ordered_labels)
+    
     matrix = [[0 for x in range(len(ordered_labels))] for y in range(len(ordered_labels))]
+    
+    all_true_labels = []
+    all_pred_labels = []
+
     for doc_true_rels, doc_pred_rels in zip(all_true_rels, all_pred_rels):
         # list of things that we've found matches for
         doc_true_rels = [tupleize_relation(rel) for rel in doc_true_rels]
         doc_pred_rels = {tupleize_relation(rel) for rel in doc_pred_rels}
+
+        # the first task is to align all of the predicted relations to the true
+        # relations with matching entities
+        # this is potentially a one-to-many alignment, since it's possible to generate
+        # multiple copies of the same entities as predictions
         true_rel_matches = {}
         for true_rel in doc_true_rels:
+            # determine which (if any) of the predictions go with this relation
             matched_pred_rels = match_relation(true_rel, doc_pred_rels)
             true_rel_matches[true_rel] = matched_pred_rels
+            # each prediction should only get aligned to a single true relation
             doc_pred_rels = doc_pred_rels.difference(matched_pred_rels)
+
+        # we can tap in to sklearn's functions for all this stuff by flattening out
+        # the labels into parallel lists
+        doc_true_labels = []
+        doc_pred_labels = []
+
+        # for each true relation, consider all of the aligned predicted relations
         for true_rel, pred_rel_matches in true_rel_matches.items():
+            # maybe we just didn't predict any relation for the same entities; we have a special label for this case
             if len(pred_rel_matches) == 0:
                 pred_labels = [MISSING_LABEL]
+            # if we did find prediction(s), we just need the labels from them
             else:
                 pred_labels = [label for label, entities in map(get_relation_label_entities, pred_rel_matches)]
+            # and what the true label was supposed to be
             true_label, true_entities = get_relation_label_entities(true_rel)
+            # once we have all the (1+) predicted labels, we update our bookkeeping
             for pred_label in pred_labels:
+                doc_true_labels.append(true_label)
+                doc_pred_labels.append(pred_label)
                 matrix[ordered_labels[true_label]][ordered_labels[pred_label]] += 1
+        
+        # finally, we have to consider the predictions that didn't get aligned to anything
+        # this means we predicted entities that just didn't match anything, which is a mistake
         unmatched_pred_labels = [label for label, entities in map(get_relation_label_entities, doc_pred_rels)]
         for pred_label in unmatched_pred_labels:
+            # the correct thing would have been not to predict a relation for these entities at all! oops
+            doc_true_labels.append(MISSING_LABEL)
+            doc_pred_labels.append(pred_label)
             matrix[ordered_labels[MISSING_LABEL]][ordered_labels[pred_label]] += 1
 
-    return matrix
+        all_true_labels.extend(doc_true_labels)
+        all_pred_labels.extend(doc_pred_labels)
+
+    pdb.set_trace()
+
+    return precision_recall_fscore_support(
+        all_true_labels, all_pred_labels, labels=list(ordered_labels.keys()), average='micro')

@@ -152,7 +152,7 @@ def delinearize_boring(linearized_tokens):
             if t_idx < h_idx:
                 continue
             # everything seems in order! let's build the relation tuple
-            rel_type = RELATION_TYPES[rel_type_token]
+            rel_type = rel_type_token
             # join the token strings into a single string
             head = tuple(rel_token_seq[h_idx+1:t_idx])
             tail = tuple(rel_token_seq[t_idx+1:])
