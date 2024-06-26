@@ -46,14 +46,14 @@ dataset = DatasetDict(json_data)
 
 # tokenization!
 def preprocess_data(examples):
-	model_inputs = tokenizer(examples['document'])
-			#max_length = config['input_ids_max_len'],
-			#truncation = True,
-			#padding = True)
-	targets = tokenizer(examples['summary'])
-			#max_length = config['labels_max_len'],
-			#truncation = True,
-			#padding = True)
+	model_inputs = tokenizer(examples['document'],
+			max_length = config['input_ids_max_len'],
+			truncation = True,
+			padding = True)
+	targets = tokenizer(examples['summary'],
+			max_length = config['labels_max_len'],
+			truncation = True,
+			padding = True)
 	model_inputs['labels'] = targets['input_ids']
 	return model_inputs
 tokenized_datasets = dataset.map(preprocess_data, batched = True, remove_columns=['document','summary'])
@@ -94,7 +94,7 @@ def compute_accuracy(eval_pred):
 		})
 	json.dump(outputs, open(f'{OUTPUT_DIR}/outputs_{CUR_EPOCH}.json', 'w'), indent=2)
 	CUR_EPOCH += 1
-	return { 'accuracy': 0 }#eval.compute_score(true_relations, pred_relations, possible_labels)
+	return eval.compute_score(true_relations, pred_relations, possible_labels)
 
 args = Seq2SeqTrainingArguments(
 		output_dir=OUTPUT_DIR,

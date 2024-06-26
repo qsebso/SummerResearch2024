@@ -1,16 +1,9 @@
 from typing import Tuple
 import pdb
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, classification_report
 
 # This is where our human-readable evaluation metrics will go!
 # e.g. precision, recall, f1, etc.
-
-def pprint_matrix(matrix):
-    for row in matrix:
-        print('\t'.join([str(cell) for cell in row]))
-
-def compute_score(true_rels, pred_rels):
-    return { 'f1': 0, 'precision': 0, 'recall': 0 }
 
 def get_relation_label_entities(rel: list) -> Tuple[str, list]:
     return rel[0], rel[1:]
@@ -43,21 +36,11 @@ def match_relation(true_rel, pred_rels) -> list:
     return list(matched_pred_rels)
 
 
-def generate_confusion_matrix(all_true_rels: list[list[list]],
+def compute_score(all_true_rels: list[list[list]],
                               all_pred_rels: list[list[list]],
-                              possible_labels: dict) -> list[list[int]]:
-    """
-    arguments:
-    all_true_rels: a list of lists of lists representing the true labels for each
-    """
+                              possible_labels: dict) -> dict:
     MISSING_LABEL = '<NONE>'
-    ordered_labels = {}
-    for i, label in enumerate([MISSING_LABEL] + list(possible_labels.keys())):
-        ordered_labels[label] = i
-    print(ordered_labels)
-    
-    matrix = [[0 for x in range(len(ordered_labels))] for y in range(len(ordered_labels))]
-    
+    eval_labels = [MISSING_LABEL] + list(possible_labels.keys())
     all_true_labels = []
     all_pred_labels = []
 
@@ -97,7 +80,6 @@ def generate_confusion_matrix(all_true_rels: list[list[list]],
             for pred_label in pred_labels:
                 doc_true_labels.append(true_label)
                 doc_pred_labels.append(pred_label)
-                matrix[ordered_labels[true_label]][ordered_labels[pred_label]] += 1
         
         # finally, we have to consider the predictions that didn't get aligned to anything
         # this means we predicted entities that just didn't match anything, which is a mistake
@@ -106,12 +88,12 @@ def generate_confusion_matrix(all_true_rels: list[list[list]],
             # the correct thing would have been not to predict a relation for these entities at all! oops
             doc_true_labels.append(MISSING_LABEL)
             doc_pred_labels.append(pred_label)
-            matrix[ordered_labels[MISSING_LABEL]][ordered_labels[pred_label]] += 1
 
         all_true_labels.extend(doc_true_labels)
         all_pred_labels.extend(doc_pred_labels)
 
-    pdb.set_trace()
+    print(classification_report(
+        all_true_labels, all_pred_labels, labels=eval_labels, output_dict=False))
 
-    return precision_recall_fscore_support(
-        all_true_labels, all_pred_labels, labels=list(ordered_labels.keys()), average='micro')
+    return classification_report(
+        all_true_labels, all_pred_labels, labels=eval_labels, output_dict=True)
