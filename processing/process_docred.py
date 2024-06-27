@@ -8,8 +8,7 @@ import sys
 sys.path.append("..")
 import config
 
-DATA_DIR = f'{config.TOP}/data/docred'
-RELATION_TYPES = json.load(open(f'{DATA_DIR}/rel_types.json'))
+from classes import Article, Relation, Entity
 
 # take a filepath for json containing data
 # return a dictionary containing data of interest
@@ -41,10 +40,11 @@ def get_docred(fp):
         #    del relation['evidence']
         relations = []
         for relation in row['labels']:
-            h_vertex = vertex_set[relation['h']]
-            entities = [Entity(h_vertex['type'], h_vertex['span']),
-                        Entity(h_vertex['type'], h_vertex['span'])]
-            relations.append(Relation(row['r'], entities, ['h', 't']))
+            h_vertex = vertices[relation['h']]
+            t_vertex = vertices[relation['t']]
+            entities = [Entity(h_vertex['etype'], h_vertex['span']),
+                        Entity(t_vertex['etype'], t_vertex['span'])]
+            relations.append(Relation(relation['r'], entities, ['h', 't']))
 
         article = Article(document, relations)
         articles.append(article)

@@ -43,7 +43,7 @@ def linearize_vertex_ref(dataset):
             relation_strs = []
             vertex_strs = []
             for relation in article['relations']:
-                i_str, c_str, o_[entity_token_idxs[i] >= entity_token_idxs[i+1] str, type_str = relation
+                i_str, c_str, o_str, type_str = relation
                 if i_str not in vertex_strs:
                     vertex_strs.append(i_str)
                 if c_str not in vertex_strs:
@@ -53,8 +53,3 @@ def linearize_vertex_ref(dataset):
 
 
                 relation_strs.append(f'<rel> <{type_str}> <i> {vertex_strs.index(i_str)} <c> {vertex_strs.index(i_str)} <o> {vertex_strs.index(i_str)}')
-
-
-
-if __name__ == '__main__':
-    linearize_boring()
