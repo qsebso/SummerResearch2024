@@ -8,19 +8,11 @@ from sklearn.metrics import precision_recall_fscore_support, classification_repo
 def get_relation_label_entities(rel: list) -> Tuple[str, list]:
     return rel[0], rel[1:]
 
-def match_entity(e1: list[str], e2: list[str]) -> bool:
+def match_entity(e1: str, e2: str) -> bool:
     return e1 == e2
 
-def match_entities(true_entities: list[list], pred_entities: list[list]) -> bool:
+def match_entities(true_entities: list[str], pred_entities: list[str]) -> bool:
     return all([match_entity(t, p) for t, p in zip(true_entities, pred_entities)])
-
-def tupleize_relation(relation):
-    # JSON-serialized relations are lists, but we need them to be hashable
-    # input:
-    # [type_str, [entity0_token0, entity0_token1, ...], [entity1_token0, entity1_token1, ...], ...]
-    # output:
-    # (type_str, (entity0_token0, entity0_token1, ...), (entity1_token0, entity1_token1, ...), ...)
-    return (relation[0],) + tuple(map(tuple, relation[1:]))
 
 # takes a given predicted relation and a list of expected true relations
 # returns the tuple if it exactly matches a true label
@@ -36,9 +28,9 @@ def match_relation(true_rel, pred_rels) -> list:
     return list(matched_pred_rels)
 
 
-def compute_score(all_true_rels: list[list[list]],
-                              all_pred_rels: list[list[list]],
-                              possible_labels: dict) -> dict:
+def compute_score(all_true_rels: list[list[str]],
+                  all_pred_rels: list[list[str]],
+                  possible_labels: dict) -> dict:
     MISSING_LABEL = '<NONE>'
     eval_labels = [MISSING_LABEL] + list(possible_labels.keys())
     all_true_labels = []
@@ -46,8 +38,8 @@ def compute_score(all_true_rels: list[list[list]],
 
     for doc_true_rels, doc_pred_rels in zip(all_true_rels, all_pred_rels):
         # list of things that we've found matches for
-        doc_true_rels = [tupleize_relation(rel) for rel in doc_true_rels]
-        doc_pred_rels = {tupleize_relation(rel) for rel in doc_pred_rels}
+        doc_true_rels = [tuple(rel) for rel in doc_true_rels]
+        doc_pred_rels = {tuple(rel) for rel in doc_pred_rels}
 
         # the first task is to align all of the predicted relations to the true
         # relations with matching entities
