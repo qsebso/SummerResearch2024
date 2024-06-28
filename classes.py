@@ -67,3 +67,11 @@ class Article:
             'text': self.text,
             'relations': [r.to_dict() for r in self.relations]
         }
+
+    def get_entities(self):
+        out = []
+        for rel in self.relations:
+            for ent in rel.entities:
+                if ent not in out:
+                    out.append(ent)
+        return out
