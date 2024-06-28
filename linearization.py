@@ -1,10 +1,11 @@
 import pdb
 import json
+import processing
 
 import utils
 from classes import Article, Relation, Entity
 
-def linearize_boring(docs: list[Article], dataset: str, filename):
+def linearize_boring(docs: list[Article], dataset: str) -> list[str]:
     RELATION_TYPES = json.load(open(f'data/{dataset}/rel_types.json'))
     RELATION_SLOTS = json.load(open(f'data/{dataset}/rel_slots.json'))
     # i guess we should have the DATASET by this point
@@ -18,7 +19,7 @@ def linearize_boring(docs: list[Article], dataset: str, filename):
     }
     json.dump(config_data, open(f'data/{dataset}/{name}/config.json', 'w'), indent=2)
 
-    outputs = []
+    targets = []
     for article in docs:
         relation_strs = []
         for rel in article.relations:
@@ -26,15 +27,11 @@ def linearize_boring(docs: list[Article], dataset: str, filename):
             for entity, slot in zip(rel.entities, rel.slots):
                 rel_pieces += [f'<{slot}>', entity.span]
             relation_strs.append(''.join(rel_pieces))
-        target = ' '.join(relation_strs)
-        article_output = article.to_dict()
-        article_output['target'] = target
-        outputs.append(article_output)
-
-    json.dump(outputs, open(f'data/{dataset}/{name}/{filename}.json', 'w'), indent=2)
+        targets.append(' '.join(relation_strs))
+    return targets
 
 
-def delinearize_boring(linearized_tokens: list[list[int]], tokenizer, dataset: str):
+def delinearize_boring(linearized_tokens: list[list[int]], tokenizer, dataset: str) -> list[list[Relation]]:
     RELATION_TYPES = json.load(open(f'data/{dataset}/rel_types.json'))
     RELATION_SLOTS = json.load(open(f'data/{dataset}/rel_slots.json'))
     str2token = tokenizer.get_added_vocab()
@@ -47,7 +44,7 @@ def delinearize_boring(linearized_tokens: list[list[int]], tokenizer, dataset: s
             # Can't have fewer than the required tokens
             if len(rel_token_seq) < len(RELATION_SLOTS) + 1:
                 continue
-            rel_type_str = tokenizer.convert_ids_to_tokens(rel_token_seq[0]).strip('<>')
+            rel_type_str = tokenizer.convert_ids_to_tokens(int(rel_token_seq[0])).strip('<>')
             # The first token should be the relation type
             if rel_type_str not in RELATION_TYPES:
                 continue
@@ -68,14 +65,24 @@ def delinearize_boring(linearized_tokens: list[list[int]], tokenizer, dataset: s
             slice_idxs = slot_token_idxs + [len(rel_token_seq)]
             entities = []
             for start, stop in zip(slice_idxs[:-1], slice_idxs[1:]):
-                entities.append(Entity('[UNK]', tokenizer.decode(rel_token_seq[start+1:stop])))
+                entities.append(Entity('[UNK]', tokenizer.decode(rel_token_seq[start+1:stop], skip_special_tokens=True)))
             relations.add(Relation(rel_type_str, entities, RELATION_SLOTS))
         per_doc_relations.append(list(relations))
     return per_doc_relations
 
+def write_data(articles: list[Article], targets: list[str],
+               dataset: str, encoding: str, split: str) -> None:
+    article_dicts = [a.to_dict() for a in articles]
+    for a_dict, target in zip(article_dicts, targets):
+        a_dict['target'] = target
+    json.dump(article_dicts, open(f'data/{dataset}/{encoding}/{split}.json', 'w'), indent=2)
 
 def linearize_docred():
-    from processing.process_docred import get_docred
-    for fname_in, fname_out in [('train_data', 'train'), ('dev', 'eval')]:
-        docs = get_docred(f'data/docred/{fname_in}.json')
-        linearize_boring(docs, 'docred', fname_out)
+    for fname_in, split in [('train_data', 'train'), ('dev', 'eval')]:
+        import processing.docred
+        docs = processing.docred.get_docred(f'data/docred/{fname_in}.json')
+        targets = linearize_boring(docs, 'docred')
+        write_data(docs, targets, 'docred', 'boring', split)
+
+if __name__ == '__main__':
+    linearize_docred()

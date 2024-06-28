@@ -1,4 +1,5 @@
 from typing import Iterable
+from classes import Article
 
 def split_seq(seq: list, val) -> list[list]:
     """
@@ -23,3 +24,10 @@ def split_seq(seq: list, val) -> list[list]:
 def partition_seq(seq: list, percentage: float):
     part_idx = int(len(seq)*percentage)
     return seq[:part_idx], seq[part_idx:]
+
+
+def write_articles(articles: list[Article], fname: str) -> None:
+    ...
+
+def read_articles(fname: str) -> list[Article]:
+    ...
