@@ -224,12 +224,14 @@ def delinearize_boring_evidence(linearized_tokens: list[list[int]], tokenizer, d
             # the start and stop token indices for adjacent entities
 
             relation_slice_idxs = slot_token_idxs[:-1]
-
+            evidence_slice_idxs = slot_token_idxs[-2:]
             entities = []
             # need to add logic for evidence
             for start, stop in zip(relation_slice_idxs[:-1], relation_slice_idxs[1:]):
                 entities.append(Entity('[UNK]', tokenizer.decode(rel_token_seq[start+1:stop], skip_special_tokens=True)))
-            relations.add(Relation(rel_type_str, entities, RELATION_SLOTS))
+            ev_start = rel_token_seq[evidence_slice_idxs[0], evidence_slice_idxs[1]]
+            ev_end = rel_token_seq[evidence_slice_idxs[1], [len(rel_token_seq)]]
+            relations.add(Relation(rel_type_str, entities, RELATION_SLOTS, [ev_start, ev_end]))
         per_doc_relations.append(list(relations))
     return per_doc_relations
 
