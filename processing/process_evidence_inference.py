@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 import utils
+from classes import Entity, Article, Relation
 
 # this function takes the directory where the abstracts folder along with csv files live
 # it returns an array of dictionaries representing data points(keys values: PMCID int, abstract string, relations array)
@@ -18,7 +19,7 @@ def load_evidence_inference() -> list[Article]:
             entities = [Entity('i', rel[0]),
                         Entity('c', rel[1]),
                         Entity('o', rel[2])]
-            relations.append(Relation(rel[3], entities, ['i', 'c', 'o']))
+            relations.append(Relation(rel[3], entities, ['i', 'c', 'o'], rel[4]))
         article = Article(doc['abstract'], relations)
         articles.append(article)
     return articles

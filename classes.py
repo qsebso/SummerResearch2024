@@ -20,11 +20,12 @@ class Entity:
         return {'etype': self.etype, 'span': self.span}
 
 class Relation:
-    def __init__(self, rtype: str, entities: list[Entity], slots: list[str]):
+    def __init__(self, rtype: str, entities: list[Entity], slots: list[str], evidence=list[int]):
         assert len(entities) == len(slots)
         self.rtype = rtype
         self.entities = entities
         self.slots = slots
+        self.evidence = evidence
 
     def __str__(self) -> str:
         repr: str = ' | '.join([f'<<{self.rtype}>>'] + [f'{slot}: {r}' for slot, r in zip(self.slots, self.entities)])
