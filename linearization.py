@@ -1,3 +1,4 @@
+from typing import cast
 import pdb
 import json
 import processing
@@ -77,12 +78,15 @@ def write_data(articles: list[Article], targets: list[str],
         a_dict['target'] = target
     json.dump(article_dicts, open(f'data/{dataset}/{encoding}/{split}.json', 'w'), indent=2)
 
-def linearize_vertex_ref(docs: list[Article], dataset: str, filename: str):
+def linearize_vertex_ref(docs: list[Article], dataset: str) -> list[str]:
     RELATION_TYPES = json.load(open(f'data/{dataset}/rel_types.json'))
     RELATION_SLOTS = json.load(open(f'data/{dataset}/rel_slots.json'))
     # i guess we should have the DATASET by this point
     name = 'vertex_ref'
-    new_words = ['<rel>', '<vertex>'] + [f'<{k}>' for k in RELATION_TYPES.keys()] + [f'<{k}>' for k in RELATION_SLOTS]
+    new_words = ['<rel>', '<vertex>'] + \
+                [f'<{k}>' for k in RELATION_TYPES.keys()] + \
+                [f'<{k}>' for k in RELATION_SLOTS] + \
+                [f'<{i}>' for i in range(100)]
     json.dump(new_words, open(f'data/{dataset}/{name}/tokens.json', 'w'), indent=2)
 
     config_data = {
@@ -103,14 +107,12 @@ def linearize_vertex_ref(docs: list[Article], dataset: str, filename: str):
         for rel in article.relations:
             rel_pieces = ['<rel>', f'<{rel.rtype}>']
             for entity, slot in zip(rel.entities, rel.slots):
-                rel_pieces += [f'<{slot}>', vertices.index(entity)]
+                rel_pieces += [f'<{slot}>', f'<{vertices.index(entity)}>']
             relation_strs.append(''.join(rel_pieces))
         target = ' '.join(vertex_strs + relation_strs)
-        article_output = article.to_dict()
-        article_output['target'] = target
-        outputs.append(article_output)
+        outputs.append(target)
+    return outputs
 
-    json.dump(outputs, open(f'data/{dataset}/{name}/{filename}.json', 'w'), indent=2)
 
 
 def delinearize_vertex_ref(linearized_tokens: list[list[int]], tokenizer, dataset: str):
@@ -235,12 +237,84 @@ def delinearize_boring_evidence(linearized_tokens: list[list[int]], tokenizer, d
         per_doc_relations.append(list(relations))
     return per_doc_relations
 
-def linearize_docred():
+# Runs the encoding funcs for the DocRED train/eval splits, and writes the data to file
+# you may need to manually created the destination directory
+def write_all_docred():
+    dataset = 'docred'
+    import processing.docred
     for fname_in, split in [('train_data', 'train'), ('dev', 'eval')]:
-        import processing.docred
-        docs = processing.docred.get_docred(f'data/docred/{fname_in}.json')
-        targets = linearize_boring(docs, 'docred')
-        write_data(docs, targets, 'docred', 'boring', split)
+        docs = processing.docred.get_docred(f'data/{dataset}/{fname_in}.json')
+        for encoding_name, encoding_func in [('boring', linearize_boring), ('vertex_ref', linearize_vertex_ref)]:
+            targets = encoding_func(docs, dataset)
+            write_data(docs, targets, 'docred', encoding_name, split)
+
+# Runs the encoding funcs for the EvidenceInference train/eval splits, and writes the data to file
+# you may need to manually created the destination directory
+def write_all_ev_inf():
+    dataset = 'evidence_inference'
+    import processing.evidence_inference
+    for fname_in, split in [('ev_inf_train', 'train'), ('ev_inf_eval', 'eval')]:
+        docs = processing.evidence_inference.load_evidence_inference(f'data/{dataset}/{fname_in}.json')
+        for encoding_name, encoding_func in [('boring', linearize_boring), ('vertex_ref', linearize_vertex_ref)]:
+            targets = encoding_func(docs, dataset)
+            write_data(docs, targets, dataset, encoding_name, split)
+
+# Tests to make sure that the process of
+#       article.relations -> linearized -> tokenized -> delinearized
+# gets you back to the starting relations
+def test_linearization(articles, dataset, name, linearization_fn, delinearization_fn):
+    # arbitrary choice of tokenizer; it may even be wise to test multiple different ones just in case
+    # ultimately, each tokenizer will fail to recreate the true originals in some way (e.g. missing accents)
+    # but this isn't a huge issue since the true relations will also be put through the tokenizer during training
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained('t5-small')
+    new_tokens = json.load(open(f'data/{dataset}/{name}/tokens.json', 'r'))
+    tokenizer.add_tokens(new_tokens)
+    linearized_targets = linearization_fn(articles, dataset)
+    linearized_tokens = cast(list[list[int]], tokenizer(linearized_targets)['input_ids'])
+    delinearized_rels = delinearization_fn(linearized_tokens, tokenizer, dataset)
+    all_correct = 0
+    for article, d_rels in zip(articles, delinearized_rels):
+        # since we've overloaded the __hash__ implementation for Relations, this works!
+        if set(article.relations) == set(d_rels):
+            all_correct += 1
+        else:
+            true_strs = set(map(str, article.relations))
+            pred_strs = set(map(str, d_rels))
+            print('TRUE:')
+            for rel in true_strs.difference(pred_strs):
+                print('\t', rel)
+            print('DECODED:')
+            for rel in pred_strs.difference(true_strs):
+                print('\t', rel)
+            print()
+    print(f'All correct = {all_correct}/{len(articles)} = {all_correct/len(articles)}')
+
+def run_tests(name, linearization_fn, delinearization_fn):
+    # somewhat awkwardly, the syntax for loading different datasets is a little different
+    # TODO: standardize this so we can just loop over dataset names?
+    print("Loading articles to test DocRED")
+    import processing.docred
+    articles = processing.docred.get_docred('data/docred/dev.json')
+    input(f"Testing on DocRED {len(articles)=}. Press any key to continue.")
+    test_linearization(articles, 'docred', name, linearization_fn, delinearization_fn)
+    
+    print("Loading articles to test EvidenceInference")
+    import processing.evidence_inference
+    articles = processing.evidence_inference.load_evidence_inference('data/evidence_inference/ev_inf_eval.json')
+    input(f"Testing on EvInf {len(articles)=}. Press any key to continue.")
+    test_linearization(articles, 'evidence_inference', name, linearization_fn, delinearization_fn)
+
+# test suites that will run the specific scheme on multiple datasets and print diagnostics
+def test_boring():
+    run_tests('boring', linearize_boring, delinearize_boring)
+
+def test_vertex_ref():
+    run_tests('vertex_ref', linearize_vertex_ref, delinearize_vertex_ref)
 
 if __name__ == '__main__':
-    linearize_docred()
+    write_all_docred()
+    write_all_ev_inf()
+
+    test_boring()
+    test_vertex_ref()

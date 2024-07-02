@@ -1,4 +1,26 @@
 class Entity:
+    def __init__(self, unused: str, span: str):
+        # vestigial first positional argument; it used to be "etype", but that
+        # behavior has been moved to TypedEntity
+        self.span = span
+
+    def __repr__(self) -> str:
+        repr: str = f'{self.span}'
+        return repr
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __eq__(self, other) -> bool:
+        return self.span == other.span
+
+    def __hash__(self) -> int:
+        return hash(self.span)
+
+    def to_dict(self) -> dict:
+        return {'span': self.span}
+
+class TypedEntity:
     def __init__(self, etype: str, span: str):
         self.etype = etype
         self.span = span

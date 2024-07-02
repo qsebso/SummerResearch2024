@@ -14,8 +14,8 @@ from classes import Article, Relation, Entity
 
 DATASET = 'evidence_inference'
 
-def load_evidence_inference() -> list[Article]:
-    docs = json.load(open(f'data/{DATASET}/{DATASET}.json'))
+def load_evidence_inference(fname) -> list[Article]:
+    docs = json.load(open(fname))
     articles = []
     for doc in docs:
         relations = []
