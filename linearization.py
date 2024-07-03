@@ -122,23 +122,29 @@ def delinearize_vertex_ref(linearized_tokens: list[list[int]], tokenizer, datase
     rel_token = str2token['<rel>']
     vertex_token = str2token['<vertex>']
     per_doc_relations = []
-    for token_seq in linearized_tokens:
+    for y, token_seq in enumerate(linearized_tokens):
+        # print(tokenizer.convert_ids_to_tokens(token_seq))
         relations = set()
         vertices = []
         rel_token_seqs = utils.split_seq(token_seq, rel_token)
         vertex_token_seqs = utils.split_seq(rel_token_seqs.pop(0), vertex_token)
         for x, vertex_token_seq in enumerate(vertex_token_seqs):
+            # pdb.set_trace()
+            if len(vertex_token_seq) < 2:
+                continue
+            # print(tokenizer.convert_ids_to_tokens(vertex_token_seq))
             vertex_idx = tokenizer.convert_ids_to_tokens(vertex_token_seq.pop(0)).strip('<>')
             # make sure it generates them in order
             if int(vertex_idx) != x:
                 continue
-            vertex_span = tokenizer.convert_ids_to_tokens(vertex_token_seq)
+            vertex_span = tokenizer.decode(vertex_token_seq)
             vertices.append(vertex_span)
         for rel_token_seq in rel_token_seqs:
             # Can't have fewer than the required tokens
+            # pdb.set_trace()
             if len(rel_token_seq) < len(RELATION_SLOTS) + 1:
                 continue
-            rel_type_str = tokenizer.convert_ids_to_tokens(rel_token_seq[0])
+            rel_type_str = tokenizer.convert_ids_to_tokens(rel_token_seq[0]).strip('<>')
             # The first token should be the relation type
             if rel_type_str not in RELATION_TYPES:
                 continue
@@ -159,7 +165,8 @@ def delinearize_vertex_ref(linearized_tokens: list[list[int]], tokenizer, datase
             slice_idxs = slot_token_idxs + [len(rel_token_seq)]
             entities = []
             for start, stop in zip(slice_idxs[:-1], slice_idxs[1:]):
-                entities.append(Entity('[UNK]', vertices[int(tokenizer.decode(rel_token_seq[start + 1:stop]))]))
+                # pdb.set_trace()
+                entities.append(Entity('[UNK]', vertices[int(tokenizer.decode(rel_token_seq[start + 1:stop]).replace('</s>', '').strip('<>'))]))
             relations.add(Relation(rel_type_str, entities, RELATION_SLOTS))
         per_doc_relations.append(list(relations))
     return per_doc_relations
@@ -192,7 +199,6 @@ def linearize_boring_evidence(docs: list[Article], dataset: str) -> list[str]:
     return targets
 
 
-# still finishing this implementation
 def delinearize_boring_evidence(linearized_tokens: list[list[int]], tokenizer, dataset: str) -> list[list[Relation]]:
     RELATION_TYPES = json.load(open(f'data/{dataset}/rel_types.json'))
     RELATION_SLOTS = json.load(open(f'data/{dataset}/rel_slots.json'))
