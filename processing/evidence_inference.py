@@ -23,7 +23,7 @@ def load_evidence_inference(fname) -> list[Article]:
             entities = [Entity('i', rel[0]),
                         Entity('c', rel[1]),
                         Entity('o', rel[2])]
-            relations.append(Relation(rel[3], entities, ['i', 'c', 'o']))
+            relations.append(Relation(rel[3], entities, ['i', 'c', 'o'], evidence=rel[4]))
         article = Article(doc['abstract'], relations)
         articles.append(article)
     return articles

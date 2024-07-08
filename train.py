@@ -55,7 +55,7 @@ def run_training_loop(MODEL_CKPT, DATASET, ENCODING):
 	def compute_accuracy(eval_pred):
 		predictions, labels = eval_pred
 		# TODO: figure out where the hell -100 token_ids are coming from
-		# tokenizer.pad_token_id and model.config.pad_token_id are both 0. what do?
+		# tokenizer.pad_token_id and model.config.json.pad_token_id are both 0. what do?
 		labels[labels==-100] = 0
 		predictions[predictions==-100] = 0
 		pred_relations = delinearize(predictions, tokenizer, DATASET)

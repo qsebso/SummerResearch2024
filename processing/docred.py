@@ -35,22 +35,22 @@ def get_docred(fp):
                 vertex['end_idx'] = sent_idx + usage['pos'][1]
             vertices.append(vertex)
 
-        #relations = row['labels']
-        #for relation in relations:
-        #    del relation['evidence']
+
         relations = []
         for relation in row['labels']:
             h_vertex = vertices[relation['h']]
             t_vertex = vertices[relation['t']]
             entities = [Entity(h_vertex['etype'], h_vertex['span']),
                         Entity(t_vertex['etype'], t_vertex['span'])]
-            relations.append(Relation(relation['r'], entities, ['h', 't']))
+            # pdb.set_trace()
+            if relation['evidence'] == []:
+                continue
+            relations.append(Relation(relation['r'], entities, ['h', 't'], evidence=[relation['evidence'][0], relation['evidence'][-1]]))
 
         article = Article(document, relations)
         articles.append(article)
         i += 1
     return articles
-
 # take a dataset from json import format
 # return a linear string including vertices and relations
 def linearize_vertex_ref(dataset):
